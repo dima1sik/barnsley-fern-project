@@ -23,11 +23,19 @@ class BarnsleyFernApp(QMainWindow):
         self.setWindowTitle("Barnsley Fern Visualizer")
         self.resize(1120, 710)
 
+        self.setup_state()
+        self.setup_presets()
+        self.setup_timer()
+        self.setup_ui()
+
+    def setup_state(self):
         self.points = []
         self.x = 0.0
         self.y = 0.0
         self.is_running = False
+        self.current_preset = "Classic Fern"
 
+    def setup_presets(self):
         self.presets = {
             "Classic Fern": {
                 "probs": [0.01, 0.85, 0.07, 0.07],
@@ -66,15 +74,21 @@ class BarnsleyFernApp(QMainWindow):
                 ],
             },
         }
-        self.current_preset = "Classic Fern"
 
+    def setup_timer(self):
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_fern)
 
+    def setup_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        main_layout = QHBoxLayout(central_widget)
 
+        self.main_layout = QHBoxLayout(central_widget)
+
+        self.setup_plot_widget()
+        self.setup_controls_panel()
+
+    def setup_plot_widget(self):
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setBackground("w")
         self.plot_widget.hideAxis("left")
@@ -90,14 +104,25 @@ class BarnsleyFernApp(QMainWindow):
         )
         self.plot_widget.addItem(self.scatter)
 
-        main_layout.addWidget(self.plot_widget, 4)
+        self.main_layout.addWidget(self.plot_widget, 4)
 
-        controls_layout = QVBoxLayout()
+    def setup_controls_panel(self):
+        self.controls_layout = QVBoxLayout()
 
+        self.create_title_label()
+        self.create_buttons()
+        self.create_parameters_group()
+        self.create_status_labels()
+
+        self.controls_layout.addStretch()
+        self.main_layout.addLayout(self.controls_layout, 1)
+
+    def create_title_label(self):
         title_label = QLabel("Barnsley Fern")
         title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
-        controls_layout.addWidget(title_label)
+        self.controls_layout.addWidget(title_label)
 
+    def create_buttons(self):
         self.start_button = QPushButton("Start")
         self.pause_button = QPushButton("Pause")
         self.reset_button = QPushButton("Reset")
@@ -106,23 +131,35 @@ class BarnsleyFernApp(QMainWindow):
         self.pause_button.clicked.connect(self.pause_animation)
         self.reset_button.clicked.connect(self.reset_fern)
 
-        controls_layout.addWidget(self.start_button)
-        controls_layout.addWidget(self.pause_button)
-        controls_layout.addWidget(self.reset_button)
+        self.controls_layout.addWidget(self.start_button)
+        self.controls_layout.addWidget(self.pause_button)
+        self.controls_layout.addWidget(self.reset_button)
 
+    def create_parameters_group(self):
         parameters_group = QGroupBox("Parameters")
         parameters_layout = QVBoxLayout()
         parameters_group.setLayout(parameters_layout)
 
+        self.create_points_per_frame_controls(parameters_layout)
+        self.create_max_points_controls(parameters_layout)
+        self.create_point_size_controls(parameters_layout)
+        self.create_speed_controls(parameters_layout)
+        self.create_color_mode_controls(parameters_layout)
+        self.create_preset_controls(parameters_layout)
+
+        self.controls_layout.addWidget(parameters_group)
+
+    def create_points_per_frame_controls(self, layout):
         self.points_per_frame_label = QLabel("Points per frame: 500")
         self.points_per_frame_slider = QSlider(Qt.Horizontal)
         self.points_per_frame_slider.setRange(10, 5000)
         self.points_per_frame_slider.setValue(500)
         self.points_per_frame_slider.valueChanged.connect(self.update_parameter_labels)
 
-        parameters_layout.addWidget(self.points_per_frame_label)
-        parameters_layout.addWidget(self.points_per_frame_slider)
+        layout.addWidget(self.points_per_frame_label)
+        layout.addWidget(self.points_per_frame_slider)
 
+    def create_max_points_controls(self, layout):
         self.max_points_label = QLabel("Max points: 20000")
         self.max_points_slider = QSlider(Qt.Horizontal)
         self.max_points_slider.setRange(1000, 100000)
@@ -130,55 +167,55 @@ class BarnsleyFernApp(QMainWindow):
         self.max_points_slider.setValue(20000)
         self.max_points_slider.valueChanged.connect(self.update_parameter_labels)
 
-        parameters_layout.addWidget(self.max_points_label)
-        parameters_layout.addWidget(self.max_points_slider)
+        layout.addWidget(self.max_points_label)
+        layout.addWidget(self.max_points_slider)
 
+    def create_point_size_controls(self, layout):
         self.point_size_label = QLabel("Point size: 2")
         self.point_size_slider = QSlider(Qt.Horizontal)
         self.point_size_slider.setRange(1, 8)
         self.point_size_slider.setValue(2)
         self.point_size_slider.valueChanged.connect(self.update_point_size)
 
-        parameters_layout.addWidget(self.point_size_label)
-        parameters_layout.addWidget(self.point_size_slider)
+        layout.addWidget(self.point_size_label)
+        layout.addWidget(self.point_size_slider)
 
+    def create_speed_controls(self, layout):
         self.speed_label = QLabel("Timer interval: 30 ms")
         self.speed_slider = QSlider(Qt.Horizontal)
         self.speed_slider.setRange(10, 200)
         self.speed_slider.setValue(30)
         self.speed_slider.valueChanged.connect(self.update_speed)
 
-        parameters_layout.addWidget(self.speed_label)
-        parameters_layout.addWidget(self.speed_slider)
+        layout.addWidget(self.speed_label)
+        layout.addWidget(self.speed_slider)
 
+    def create_color_mode_controls(self, layout):
         self.color_mode_label = QLabel("Color mode:")
         self.color_mode_combo = QComboBox()
         self.color_mode_combo.addItems(["Classic Green", "Black & White", "By Transform"])
         self.color_mode_combo.currentTextChanged.connect(self.refresh_plot)
 
-        parameters_layout.addWidget(self.color_mode_label)
-        parameters_layout.addWidget(self.color_mode_combo)
+        layout.addWidget(self.color_mode_label)
+        layout.addWidget(self.color_mode_combo)
 
+    def create_preset_controls(self, layout):
         self.preset_label = QLabel("Fern preset:")
         self.preset_combo = QComboBox()
         self.preset_combo.addItems(["Classic Fern", "Thin Fern", "Wide Fern", "Dense Fern"])
         self.preset_combo.currentTextChanged.connect(self.change_preset)
 
-        parameters_layout.addWidget(self.preset_label)
-        parameters_layout.addWidget(self.preset_combo)
+        layout.addWidget(self.preset_label)
+        layout.addWidget(self.preset_combo)
 
-        controls_layout.addWidget(parameters_group)
-
+    def create_status_labels(self):
         self.status_label = QLabel("Status: Ready")
         self.status_label.setStyleSheet("font-size: 14px; font-weight: bold;")
-        controls_layout.addWidget(self.status_label)
+        self.controls_layout.addWidget(self.status_label)
 
         self.points_label = QLabel("Generated points: 0")
         self.points_label.setStyleSheet("font-size: 14px;")
-        controls_layout.addWidget(self.points_label)
-
-        controls_layout.addStretch()
-        main_layout.addLayout(controls_layout, 1)
+        self.controls_layout.addWidget(self.points_label)
 
     def update_parameter_labels(self):
         self.points_per_frame_label.setText(
