@@ -4,6 +4,7 @@ import random
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (
     QApplication,
+    QComboBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -20,7 +21,7 @@ class BarnsleyFernApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Barnsley Fern Visualizer")
-        self.resize(1080, 700)
+        self.resize(1100, 700)
 
         self.points = []
         self.x = 0.0
@@ -110,6 +111,14 @@ class BarnsleyFernApp(QMainWindow):
         parameters_layout.addWidget(self.speed_label)
         parameters_layout.addWidget(self.speed_slider)
 
+        self.color_mode_label = QLabel("Color mode:")
+        self.color_mode_combo = QComboBox()
+        self.color_mode_combo.addItems(["Classic Green", "Black & White", "By Transform"])
+        self.color_mode_combo.currentTextChanged.connect(self.refresh_plot)
+
+        parameters_layout.addWidget(self.color_mode_label)
+        parameters_layout.addWidget(self.color_mode_combo)
+
         controls_layout.addWidget(parameters_group)
 
         self.status_label = QLabel("Status: Ready")
@@ -171,17 +180,49 @@ class BarnsleyFernApp(QMainWindow):
         if r < 0.01:
             x_new = 0.0
             y_new = 0.16 * y
+            transform_index = 0
         elif r < 0.86:
             x_new = 0.85 * x + 0.04 * y
             y_new = -0.04 * x + 0.85 * y + 1.6
+            transform_index = 1
         elif r < 0.93:
             x_new = 0.20 * x - 0.26 * y
             y_new = 0.23 * x + 0.22 * y + 1.6
+            transform_index = 2
         else:
             x_new = -0.15 * x + 0.28 * y
             y_new = 0.26 * x + 0.24 * y + 0.44
+            transform_index = 3
 
-        return x_new, y_new
+        return x_new, y_new, transform_index
+
+    def get_brushes(self):
+        mode = self.color_mode_combo.currentText()
+
+        if mode == "Classic Green":
+            return [pg.mkBrush(0, 180, 0) for _ in self.points]
+
+        if mode == "Black & White":
+            return [pg.mkBrush(40, 40, 40) for _ in self.points]
+
+        transform_colors = {
+            0: pg.mkBrush(20, 100, 20),
+            1: pg.mkBrush(0, 170, 0),
+            2: pg.mkBrush(100, 200, 100),
+            3: pg.mkBrush(0, 120, 60),
+        }
+        return [transform_colors[point[2]] for point in self.points]
+
+    def refresh_plot(self):
+        if not self.points:
+            self.scatter.setData([], [])
+            return
+
+        xs = [point[0] for point in self.points]
+        ys = [point[1] for point in self.points]
+        brushes = self.get_brushes()
+
+        self.scatter.setData(x=xs, y=ys, brush=brushes)
 
     def update_fern(self):
         max_points = self.max_points_slider.value()
@@ -196,13 +237,10 @@ class BarnsleyFernApp(QMainWindow):
         new_points_count = min(points_per_frame, max_points - len(self.points))
 
         for _ in range(new_points_count):
-            self.x, self.y = self.next_point(self.x, self.y)
-            self.points.append((self.x, self.y))
+            self.x, self.y, transform_index = self.next_point(self.x, self.y)
+            self.points.append((self.x, self.y, transform_index))
 
-        xs = [point[0] for point in self.points]
-        ys = [point[1] for point in self.points]
-
-        self.scatter.setData(xs, ys)
+        self.refresh_plot()
         self.points_label.setText(f"Generated points: {len(self.points)}")
 
 
