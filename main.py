@@ -21,12 +21,52 @@ class BarnsleyFernApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Barnsley Fern Visualizer")
-        self.resize(1100, 700)
+        self.resize(1120, 710)
 
         self.points = []
         self.x = 0.0
         self.y = 0.0
         self.is_running = False
+
+        self.presets = {
+            "Classic Fern": {
+                "probs": [0.01, 0.85, 0.07, 0.07],
+                "transforms": [
+                    lambda x, y: (0.0, 0.16 * y),
+                    lambda x, y: (0.85 * x + 0.04 * y, -0.04 * x + 0.85 * y + 1.6),
+                    lambda x, y: (0.20 * x - 0.26 * y, 0.23 * x + 0.22 * y + 1.6),
+                    lambda x, y: (-0.15 * x + 0.28 * y, 0.26 * x + 0.24 * y + 0.44),
+                ],
+            },
+            "Thin Fern": {
+                "probs": [0.01, 0.88, 0.055, 0.055],
+                "transforms": [
+                    lambda x, y: (0.0, 0.16 * y),
+                    lambda x, y: (0.88 * x + 0.02 * y, -0.02 * x + 0.88 * y + 1.4),
+                    lambda x, y: (0.16 * x - 0.22 * y, 0.20 * x + 0.20 * y + 1.6),
+                    lambda x, y: (-0.12 * x + 0.24 * y, 0.22 * x + 0.20 * y + 0.44),
+                ],
+            },
+            "Wide Fern": {
+                "probs": [0.01, 0.82, 0.085, 0.085],
+                "transforms": [
+                    lambda x, y: (0.0, 0.18 * y),
+                    lambda x, y: (0.82 * x + 0.08 * y, -0.05 * x + 0.82 * y + 1.6),
+                    lambda x, y: (0.26 * x - 0.30 * y, 0.25 * x + 0.24 * y + 1.6),
+                    lambda x, y: (-0.20 * x + 0.30 * y, 0.25 * x + 0.24 * y + 0.44),
+                ],
+            },
+            "Dense Fern": {
+                "probs": [0.02, 0.84, 0.07, 0.07],
+                "transforms": [
+                    lambda x, y: (0.0, 0.20 * y),
+                    lambda x, y: (0.84 * x + 0.05 * y, -0.03 * x + 0.84 * y + 1.55),
+                    lambda x, y: (0.22 * x - 0.24 * y, 0.24 * x + 0.22 * y + 1.6),
+                    lambda x, y: (-0.16 * x + 0.26 * y, 0.24 * x + 0.22 * y + 0.44),
+                ],
+            },
+        }
+        self.current_preset = "Classic Fern"
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_fern)
@@ -119,6 +159,14 @@ class BarnsleyFernApp(QMainWindow):
         parameters_layout.addWidget(self.color_mode_label)
         parameters_layout.addWidget(self.color_mode_combo)
 
+        self.preset_label = QLabel("Fern preset:")
+        self.preset_combo = QComboBox()
+        self.preset_combo.addItems(["Classic Fern", "Thin Fern", "Wide Fern", "Dense Fern"])
+        self.preset_combo.currentTextChanged.connect(self.change_preset)
+
+        parameters_layout.addWidget(self.preset_label)
+        parameters_layout.addWidget(self.preset_combo)
+
         controls_layout.addWidget(parameters_group)
 
         self.status_label = QLabel("Status: Ready")
@@ -174,26 +222,29 @@ class BarnsleyFernApp(QMainWindow):
         self.points_label.setText("Generated points: 0")
         self.status_label.setText("Status: Ready")
 
-    def next_point(self, x, y):
+    def change_preset(self):
+        self.current_preset = self.preset_combo.currentText()
+        self.reset_fern()
+
+    def choose_transform(self):
+        preset = self.presets[self.current_preset]
+        probs = preset["probs"]
+        transforms = preset["transforms"]
+
         r = random.random()
+        cumulative = 0.0
 
-        if r < 0.01:
-            x_new = 0.0
-            y_new = 0.16 * y
-            transform_index = 0
-        elif r < 0.86:
-            x_new = 0.85 * x + 0.04 * y
-            y_new = -0.04 * x + 0.85 * y + 1.6
-            transform_index = 1
-        elif r < 0.93:
-            x_new = 0.20 * x - 0.26 * y
-            y_new = 0.23 * x + 0.22 * y + 1.6
-            transform_index = 2
-        else:
-            x_new = -0.15 * x + 0.28 * y
-            y_new = 0.26 * x + 0.24 * y + 0.44
-            transform_index = 3
+        for index, probability in enumerate(probs):
+            cumulative += probability
+            if r <= cumulative:
+                return index, transforms[index]
 
+        last_index = len(transforms) - 1
+        return last_index, transforms[last_index]
+
+    def next_point(self, x, y):
+        transform_index, transform = self.choose_transform()
+        x_new, y_new = transform(x, y)
         return x_new, y_new, transform_index
 
     def get_brushes(self):
