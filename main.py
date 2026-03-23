@@ -20,7 +20,7 @@ class BarnsleyFernApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Barnsley Fern Visualizer")
-        self.resize(1050, 680)
+        self.resize(1080, 700)
 
         self.points = []
         self.x = 0.0
@@ -101,7 +101,20 @@ class BarnsleyFernApp(QMainWindow):
         parameters_layout.addWidget(self.point_size_label)
         parameters_layout.addWidget(self.point_size_slider)
 
+        self.speed_label = QLabel("Timer interval: 30 ms")
+        self.speed_slider = QSlider(Qt.Horizontal)
+        self.speed_slider.setRange(10, 200)
+        self.speed_slider.setValue(30)
+        self.speed_slider.valueChanged.connect(self.update_speed)
+
+        parameters_layout.addWidget(self.speed_label)
+        parameters_layout.addWidget(self.speed_slider)
+
         controls_layout.addWidget(parameters_group)
+
+        self.status_label = QLabel("Status: Ready")
+        self.status_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        controls_layout.addWidget(self.status_label)
 
         self.points_label = QLabel("Generated points: 0")
         self.points_label.setStyleSheet("font-size: 14px;")
@@ -123,22 +136,34 @@ class BarnsleyFernApp(QMainWindow):
         self.point_size_label.setText(f"Point size: {size}")
         self.scatter.setSize(size)
 
+    def update_speed(self):
+        interval = self.speed_slider.value()
+        self.speed_label.setText(f"Timer interval: {interval} ms")
+
+        if self.is_running:
+            self.timer.start(interval)
+
     def start_animation(self):
         if not self.is_running:
             self.is_running = True
-            self.timer.start(30)
+            self.status_label.setText("Status: Running")
+            self.timer.start(self.speed_slider.value())
 
     def pause_animation(self):
-        self.is_running = False
-        self.timer.stop()
+        if self.is_running:
+            self.is_running = False
+            self.timer.stop()
+            self.status_label.setText("Status: Paused")
 
     def reset_fern(self):
-        self.pause_animation()
+        self.is_running = False
+        self.timer.stop()
         self.points = []
         self.x = 0.0
         self.y = 0.0
         self.scatter.setData([], [])
         self.points_label.setText("Generated points: 0")
+        self.status_label.setText("Status: Ready")
 
     def next_point(self, x, y):
         r = random.random()
@@ -163,7 +188,9 @@ class BarnsleyFernApp(QMainWindow):
         points_per_frame = self.points_per_frame_slider.value()
 
         if len(self.points) >= max_points:
-            self.pause_animation()
+            self.is_running = False
+            self.timer.stop()
+            self.status_label.setText("Status: Finished")
             return
 
         new_points_count = min(points_per_frame, max_points - len(self.points))
