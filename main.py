@@ -1,13 +1,15 @@
 import sys
 import random
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (
     QApplication,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QMainWindow,
     QPushButton,
+    QSlider,
     QVBoxLayout,
     QWidget,
 )
@@ -18,15 +20,12 @@ class BarnsleyFernApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Barnsley Fern Visualizer")
-        self.resize(1000, 650)
+        self.resize(1050, 680)
 
         self.points = []
         self.x = 0.0
         self.y = 0.0
         self.is_running = False
-
-        self.points_per_frame = 500
-        self.max_points = 20000
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_fern)
@@ -70,12 +69,59 @@ class BarnsleyFernApp(QMainWindow):
         controls_layout.addWidget(self.pause_button)
         controls_layout.addWidget(self.reset_button)
 
+        parameters_group = QGroupBox("Parameters")
+        parameters_layout = QVBoxLayout()
+        parameters_group.setLayout(parameters_layout)
+
+        self.points_per_frame_label = QLabel("Points per frame: 500")
+        self.points_per_frame_slider = QSlider(Qt.Horizontal)
+        self.points_per_frame_slider.setRange(10, 5000)
+        self.points_per_frame_slider.setValue(500)
+        self.points_per_frame_slider.valueChanged.connect(self.update_parameter_labels)
+
+        parameters_layout.addWidget(self.points_per_frame_label)
+        parameters_layout.addWidget(self.points_per_frame_slider)
+
+        self.max_points_label = QLabel("Max points: 20000")
+        self.max_points_slider = QSlider(Qt.Horizontal)
+        self.max_points_slider.setRange(1000, 100000)
+        self.max_points_slider.setSingleStep(1000)
+        self.max_points_slider.setValue(20000)
+        self.max_points_slider.valueChanged.connect(self.update_parameter_labels)
+
+        parameters_layout.addWidget(self.max_points_label)
+        parameters_layout.addWidget(self.max_points_slider)
+
+        self.point_size_label = QLabel("Point size: 2")
+        self.point_size_slider = QSlider(Qt.Horizontal)
+        self.point_size_slider.setRange(1, 8)
+        self.point_size_slider.setValue(2)
+        self.point_size_slider.valueChanged.connect(self.update_point_size)
+
+        parameters_layout.addWidget(self.point_size_label)
+        parameters_layout.addWidget(self.point_size_slider)
+
+        controls_layout.addWidget(parameters_group)
+
         self.points_label = QLabel("Generated points: 0")
         self.points_label.setStyleSheet("font-size: 14px;")
         controls_layout.addWidget(self.points_label)
 
         controls_layout.addStretch()
         main_layout.addLayout(controls_layout, 1)
+
+    def update_parameter_labels(self):
+        self.points_per_frame_label.setText(
+            f"Points per frame: {self.points_per_frame_slider.value()}"
+        )
+        self.max_points_label.setText(
+            f"Max points: {self.max_points_slider.value()}"
+        )
+
+    def update_point_size(self):
+        size = self.point_size_slider.value()
+        self.point_size_label.setText(f"Point size: {size}")
+        self.scatter.setSize(size)
 
     def start_animation(self):
         if not self.is_running:
@@ -113,11 +159,14 @@ class BarnsleyFernApp(QMainWindow):
         return x_new, y_new
 
     def update_fern(self):
-        if len(self.points) >= self.max_points:
+        max_points = self.max_points_slider.value()
+        points_per_frame = self.points_per_frame_slider.value()
+
+        if len(self.points) >= max_points:
             self.pause_animation()
             return
 
-        new_points_count = min(self.points_per_frame, self.max_points - len(self.points))
+        new_points_count = min(points_per_frame, max_points - len(self.points))
 
         for _ in range(new_points_count):
             self.x, self.y = self.next_point(self.x, self.y)
